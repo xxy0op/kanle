@@ -5,9 +5,12 @@
  */
 export async function triggerRevalidate(): Promise<void> {
   try {
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:3000";
+    const revalidateUrl =
+      process.env.REVALIDATE_URL ||
+      process.env.CLIENT_URL ||
+      "http://localhost:3000";
     const secret = process.env.REVALIDATE_SECRET || "kanle-revalidate";
-    await fetch(`${clientUrl}/api/revalidate`, {
+    await fetch(`${revalidateUrl.replace(/\/$/, "")}/api/revalidate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ secret }),

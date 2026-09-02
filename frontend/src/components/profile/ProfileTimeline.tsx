@@ -9,7 +9,6 @@ import type { Post } from "@/lib/mock-data";
 import ProfilePinnedStrip from "./ProfilePinnedStrip";
 import TimelinePostCard from "./TimelinePostCard";
 
-const REVALIDATE_SECRET = process.env.NEXT_PUBLIC_REVALIDATE_SECRET || "kanle-revalidate";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const PAGE_SIZE = 10;
 
@@ -97,18 +96,6 @@ export default function ProfileTimeline({
   }, [settingsLoaded, adOnArchives]);
 
   useEffect(() => {
-    const triggerRevalidate = async () => {
-      try {
-        await fetch("/api/revalidate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ secret: REVALIDATE_SECRET }),
-        });
-      } catch {
-        // ignore
-      }
-    };
-
     const handler = async () => {
       try {
         const email = (typeof window !== "undefined" && localStorage.getItem("visitor_email")) || "";
@@ -131,7 +118,6 @@ export default function ProfileTimeline({
       } catch {
         // ignore
       }
-      triggerRevalidate();
       router.refresh();
     };
 

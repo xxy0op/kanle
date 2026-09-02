@@ -1,0 +1,53 @@
+name: Publish Release deployment bundle
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build deployment bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${GITHUB_REF_NAME#v}"
+          BUNDLE_DIR="dist/kanle-${VERSION}"
+
+          mkdir -p "${BUNDLE_DIR}/deploy"
+          cp docker-compose.yml .env.example DEPLOYMENT.md LICENSE "${BUNDLE_DIR}/"
+          cp deploy/nginx.compose.conf "${BUNDLE_DIR}/deploy/"
+          printf '%s\n' "${VERSION}" > "${BUNDLE_DIR}/VERSION"
+
+          (
+            cd dist
+            zip -qr "kanle-${VERSION}-deploy.zip" "kanle-${VERSION}"
+            tar -czf "kanle-${VERSION}-deploy.tar.gz" "kanle-${VERSION}"
+          )
+
+          sha256sum \
+            "dist/kanle-${VERSION}-deploy.zip" \
+            "dist/kanle-${VERSION}-deploy.tar.gz" \
+            > "dist/kanle-${VERSION}-checksums.sha256"
+
+      - name: Upload Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: kanle ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/kanle-*-deploy.zip
+            dist/kanle-*-deploy.tar.gz
+            dist/kanle-*-checksums.sha256

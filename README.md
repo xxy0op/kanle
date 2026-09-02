@@ -2,6 +2,9 @@
 
 一个像微信朋友圈一样的个人博客系统。发动态、写文章、评论点赞、音乐播放、邮件通知，所有功能开箱即用。
 
+[![Docker images](https://img.shields.io/github/actions/workflow/status/xxy0op/kanle/publish-image.yml?branch=main&label=docker%20images)](https://github.com/xxy0op/kanle/actions/workflows/publish-image.yml)
+[![GHCR](https://img.shields.io/badge/image-GHCR-2496ED?logo=docker&logoColor=white)](https://github.com/xxy0op/kanle/pkgs)
+
 ## 功能特性
 
 ### 朋友圈动态
@@ -63,11 +66,98 @@
 | 前端 | Next.js 16 · React 19 · Tailwind CSS v4 · Zustand |
 | 后端 | Express 5 · Sequelize 6 · TypeScript 6 |
 | 数据库 | MySQL 5.7 / 8.0 |
-| 部署 | PM2 + Nginx |
+| 部署 | Docker Compose / PM2 + Nginx |
 
 ---
 
-## 部署教程（Debian 12 全新服务器）
+## Docker Compose 部署（推荐）
+
+Compose 默认直接拉取 GHCR 中的 `kanle-backend` 和 `kanle-frontend` 镜像，服务器不需要保存源码，也不需要安装 Node.js、pnpm 或 PM2。MySQL 和 Nginx 使用官方镜像。
+
+### 环境要求
+
+- Linux 服务器
+- Docker Engine
+- Docker Compose v2
+- GHCR 中的 kanle 镜像为 Public，或服务器已执行 `docker login ghcr.io`
+
+完整部署步骤见 [`DEPLOYMENT.md`](DEPLOYMENT.md)。
+
+### 快速开始
+
+不需要克隆整个源码仓库，服务器只需下载部署文件：
+
+```bash
+mkdir -p /opt/kanle/deploy
+cd /opt/kanle
+
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
+curl -fsSL -o .env.example https://raw.githubusercontent.com/xxy0op/kanle/main/.env.example
+curl -fsSL -o deploy/nginx.compose.conf https://raw.githubusercontent.com/xxy0op/kanle/main/deploy/nginx.compose.conf
+cp .env.example .env
+vim .env
+```
+
+至少修改 `MYSQL_ROOT_PASSWORD`、`DB_PASSWORD`、`JWT_SECRET`、`ADMIN_PASSWORD` 和 `REVALIDATE_SECRET`。域名部署时将 `CLIENT_URL` 改为站点完整地址，例如 `https://example.com`。
+
+启动服务：
+
+```bash
+docker compose config
+docker compose pull
+docker compose up -d
+```
+
+默认访问地址是 `http://服务器IP`。如果修改了 `HTTP_PORT`，访问时带上对应端口。
+
+首次启动时，后端会等待 MySQL 就绪并自动创建数据表及管理员账号。已有数据库不会被 `ADMIN_PASSWORD` 覆盖；`JWT_SECRET` 必须长期保持不变。
+
+### Release 版本部署
+
+每个 `v*` Git 标签会自动生成 Release 部署文件包：
+
+- `kanle-x.y.z-deploy.zip`
+- `kanle-x.y.z-deploy.tar.gz`
+- `kanle-x.y.z-checksums.sha256`
+
+解压 Release 文件包后，在 `.env` 中设置具体镜像版本：
+
+```ini
+IMAGE_TAG=1.0.0
+```
+
+然后执行：
+
+```bash
+docker compose pull
+docker compose up -d --force-recreate
+```
+
+不设置 `IMAGE_TAG` 时默认拉取 `latest`。
+
+### 更新 latest
+
+```bash
+cd /opt/kanle
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
+curl -fsSL -o deploy/nginx.compose.conf https://raw.githubusercontent.com/xxy0op/kanle/main/deploy/nginx.compose.conf
+docker compose pull
+docker compose up -d --force-recreate
+```
+
+### 数据和日志
+
+Compose 会保留以下命名卷：`mysql-data`（数据库）、`backend-uploads`（上传文件）和 `backend-plugins`（音乐插件）。停止服务但保留数据使用 `docker compose down`，不要随意使用 `docker compose down -v`。
+
+```bash
+docker compose ps
+docker compose logs --tail=100 backend
+docker compose logs --tail=100 frontend
+```
+
+更新前建议备份数据库和环境变量。Compose 内置 Nginx 只提供 HTTP，生产环境建议在宿主机 Nginx、Caddy、云负载均衡或 CDN 层终止 HTTPS。
+
+## 传统 PM2 + Nginx 部署（可选）
 
 本教程适用于一台全新的 Debian 12 服务器，从零开始安装所有依赖并部署 kanle。
 
@@ -262,8 +352,7 @@ BACKEND_URL=http://localhost:4000
 # 站点 URL（可选，用于 Cravatar 默认头像，有域名可设为 https://你的域名.com）
 NEXT_PUBLIC_SITE_URL=
 
-# 按需重验证密钥（须与后端 REVALIDATE_SECRET 一致）
-NEXT_PUBLIC_REVALIDATE_SECRET=kanle-revalidate
+# 按需重验证密钥（仅 Next.js 服务端使用，须与后端一致）
 REVALIDATE_SECRET=kanle-revalidate
 
 # standalone 服务监听
@@ -364,7 +453,7 @@ pm2 save
 
 ---
 
-## 升级（保留数据）
+## 传统 PM2 升级（保留数据）
 
 ```bash
 cd $INSTALL_DIR
@@ -390,6 +479,23 @@ pm2 restart kanle-frontend
 
 ## 环境变量
 
+### Docker Compose（根目录 `.env`）
+
+| 变量 | 必填 | 默认值 | 说明 |
+|---|---|---|---|
+| `IMAGE_TAG` | 否 | `latest` | 应用镜像版本；Release 部署可设置为 `1.0.0` |
+| `MYSQL_ROOT_PASSWORD` | 是 | - | MySQL root 密码 |
+| `DB_NAME` | 否 | `moment_blog` | 数据库名 |
+| `DB_USER` | 否 | `kanle` | 数据库业务用户 |
+| `DB_PASSWORD` | 是 | - | 数据库业务用户密码 |
+| `JWT_SECRET` | 是 | - | JWT 密钥，升级时必须保持不变 |
+| `ADMIN_PASSWORD` | 是 | - | 新数据库的初始管理员密码 |
+| `REVALIDATE_SECRET` | 是 | - | 前后端服务端之间的重验证密钥 |
+| `CLIENT_URL` | 否 | `http://localhost` | 公网站点地址，用于 CORS |
+| `HTTP_PORT` | 否 | `80` | Nginx 对外端口 |
+
+完整模板见 [`.env.example`](.env.example)。
+
 ### 后端（`backend/.env`）
 
 | 变量 | 必填 | 默认值 | 说明 |
@@ -405,7 +511,8 @@ pm2 restart kanle-frontend
 | `ADMIN_PASSWORD` | 是 | `123456` | 初始管理员密码（仅首次创建生效） |
 | `ADMIN_USERNAME` | 否 | `admin` | 管理员用户名 |
 | `CLIENT_URL` | 否 | `http://localhost:3000` | 前端地址（CORS + revalidate 回调） |
-| `REVALIDATE_SECRET` | 否 | `kanle-revalidate` | 按需重验证密钥（须与前端一致） |
+| `REVALIDATE_URL` | 否 | 使用 `CLIENT_URL` | Next.js 按需重验证地址；Compose 使用 `http://frontend:3000` |
+| `REVALIDATE_SECRET` | 否 | `kanle-revalidate` | 按需重验证密钥（须与前端服务端一致） |
 
 ### 前端（`frontend/.env.local`）
 
@@ -415,7 +522,7 @@ pm2 restart kanle-frontend
 | `BACKEND_URL` | 是 | rewrites 代理目标，PM2 部署填 `http://localhost:4000` |
 | `NEXT_PUBLIC_SITE_URL` | 否 | 站点 URL（用于 Cravatar 默认头像，不设则回退 wavatar） |
 | `NEXT_PUBLIC_TWIKOO_ENV_ID` | 否 | Twikoo 评论系统环境 ID |
-| `REVALIDATE_SECRET` | 否 | 须与后端一致 |
+| `REVALIDATE_SECRET` | 否 | 须与后端一致，仅在 Next.js 服务端使用 |
 
 > `NEXT_PUBLIC_API_URL=/api` 是相对路径，换域名后**不需要重新构建**。
 
@@ -444,7 +551,7 @@ pm2 restart kanle-frontend
 <details>
 <summary>发动态后刷新页面没看到更新？</summary>
 
-检查后端 `.env` 的 `REVALIDATE_SECRET` 与前端 `.env.local` 的 `REVALIDATE_SECRET` / `NEXT_PUBLIC_REVALIDATE_SECRET` 是否一致。
+检查后端 `.env` 的 `REVALIDATE_SECRET` 与前端服务端环境中的 `REVALIDATE_SECRET` 是否一致。Compose 部署还要确保后端能通过内部地址访问前端。
 </details>
 
 <details>
