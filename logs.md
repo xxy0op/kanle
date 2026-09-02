@@ -46,3 +46,16 @@ Progress:
 - Verification: Compose 和两个 GitHub Actions workflow 通过 `js-yaml` 解析；确认 Compose 仅包含 `kanle` 服务、远程 GHCR 镜像、`pull_policy: always`、固定容器名、3000 端口和 `/var/kanle:/app/data` 挂载；`docker-entrypoint.sh` 通过 shell 语法检查；根 Dockerfile、Release 包命令和文档检查通过；`git diff --check` 通过。
 - Unresolved bugs / risks: kanle 当前后端依赖 MySQL，不能在不迁移数据库架构的情况下直接变成 moments 式内置 SQLite；本次采用单应用容器 + 外部 MySQL。当前环境没有 Docker，无法执行真实镜像构建和启动。
 - Files changed: docker-compose.yml, Dockerfile, docker-entrypoint.sh, .dockerignore, .env.example, DEPLOYMENT.md, README.md, .github/workflows/publish-image.yml, .github/workflows/release-bundle.yml, logs.md
+
+## 2026-09-03 00:04 - 发布 v1.0.0 Release
+
+Status: Completed
+
+Progress:
+- Completed: 确认远端 `main` 已包含 README 和单容器 Docker 部署配置；创建并推送 `v1.0.0` 标签。
+- Completed: GitHub Actions 成功创建 `v1.0.0` Release，并上传 ZIP、TAR.GZ 和 SHA256 校验文件；多架构 GHCR 镜像工作流执行成功。
+- In progress: 无。
+- Not started: 无。
+- Verification: Release 地址为 `https://github.com/xxy0op/kanle/releases/tag/v1.0.0`；3 个 Release 资产已确认存在；镜像工作流 `33651739199` 成功；远端 README 已确认包含 Docker Compose、GHCR、Release 和 `/var/kanle` 内容。
+- Unresolved bugs / risks: 未授权访问 GHCR registry 返回 401，无法从当前环境确认容器包 Public 状态；若包未公开，部署服务器需先执行 `docker login ghcr.io`。
+- Files changed: logs.md；远端已发布标签 `v1.0.0` 和 Release 资产。
