@@ -84,6 +84,42 @@ Compose 默认直接拉取 GHCR 中的 `ghcr.io/xxy0op/kanle:latest` 镜像，�
 
 完整部署步骤见 [`DEPLOYMENT.md`](DEPLOYMENT.md)。
 
+### 当前 `docker-compose.yml`
+
+当前 Docker 部署使用单个应用服务，直接拉取 GHCR 镜像；后端和前端在同一容器内运行，MySQL 使用宿主机或远程已有实例：
+
+```yaml
+services:
+  kanle:
+    image: ghcr.io/xxy0op/kanle:${IMAGE_TAG:-latest}
+    pull_policy: always
+    container_name: kanle
+    restart: always
+    environment:
+      NODE_ENV: production
+      BACKEND_PORT: 4000
+      FRONTEND_PORT: 3000
+      DB_HOST: "${DB_HOST:?Set DB_HOST in .env}"
+      DB_PORT: "${DB_PORT:-3306}"
+      DB_NAME: "${DB_NAME:-moment_blog}"
+      DB_USER: "${DB_USER:?Set DB_USER in .env}"
+      DB_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in .env}"
+      JWT_EXPIRES_IN: "${JWT_EXPIRES_IN:-7d}"
+      ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@kanle.net}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}"
+      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+      CLIENT_URL: "${CLIENT_URL:-http://localhost:3000}"
+      REVALIDATE_URL: http://127.0.0.1:3000
+      REVALIDATE_SECRET: "${REVALIDATE_SECRET:?Set REVALIDATE_SECRET in .env}"
+    ports:
+      - "${HTTP_PORT:-3000}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /var/kanle:/app/data
+```
+
 ### 快速开始
 
 不需要克隆整个源码仓库，服务器只需下载部署文件：

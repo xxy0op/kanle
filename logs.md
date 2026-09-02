@@ -59,3 +59,15 @@ Progress:
 - Verification: Release 地址为 `https://github.com/xxy0op/kanle/releases/tag/v1.0.0`；3 个 Release 资产已确认存在；镜像工作流 `33651739199` 成功；远端 README 已确认包含 Docker Compose、GHCR、Release 和 `/var/kanle` 内容。
 - Unresolved bugs / risks: 未授权访问 GHCR registry 返回 401，无法从当前环境确认容器包 Public 状态；若包未公开，部署服务器需先执行 `docker login ghcr.io`。
 - Files changed: logs.md；远端已发布标签 `v1.0.0` 和 Release 资产。
+
+## 2026-09-03 00:39 - 将 Compose 完整配置同步到 README
+
+Status: Completed
+
+Progress:
+- Completed: 对照当前 `docker-compose.yml` 检查 README Docker Compose 部署章节，并补充当前单容器 Compose 完整配置代码块。
+- In progress: 无。
+- Not started: 无。
+- Verification: README 中的 YAML 代码块与当前 `docker-compose.yml` 内容逐字一致；README 和日志空白检查通过。
+- Unresolved bugs / risks: 尚未开始。
+- Files changed: README.md, logs.md
