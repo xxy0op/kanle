@@ -24,9 +24,8 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           BUNDLE_DIR="dist/kanle-${VERSION}"
 
-          mkdir -p "${BUNDLE_DIR}/deploy"
-          cp docker-compose.yml .env.example DEPLOYMENT.md LICENSE "${BUNDLE_DIR}/"
-          cp deploy/nginx.compose.conf "${BUNDLE_DIR}/deploy/"
+          mkdir -p "${BUNDLE_DIR}"
+          cp docker-compose.yml .env.example DEPLOYMENT.md README.md LICENSE "${BUNDLE_DIR}/"
           printf '%s\n' "${VERSION}" > "${BUNDLE_DIR}/VERSION"
 
           (

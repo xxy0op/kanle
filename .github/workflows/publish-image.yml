@@ -1,4 +1,4 @@
-name: Publish Docker images
+name: Publish Docker image
 
 on:
   push:
@@ -9,20 +9,11 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_OWNER: xxy0op
+  IMAGE_NAME: ghcr.io/xxy0op/kanle
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - name: backend
-            context: ./backend
-            image: kanle-backend
-          - name: frontend
-            context: ./frontend
-            image: kanle-frontend
 
     permissions:
       contents: read
@@ -49,7 +40,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
             type=sha
@@ -61,8 +52,8 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.context }}/Dockerfile
+          context: .
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

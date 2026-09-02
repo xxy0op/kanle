@@ -72,14 +72,15 @@
 
 ## Docker Compose 部署（推荐）
 
-Compose 默认直接拉取 GHCR 中的 `kanle-backend` 和 `kanle-frontend` 镜像，服务器不需要保存源码，也不需要安装 Node.js、pnpm 或 PM2。MySQL 和 Nginx 使用官方镜像。
+Compose 默认直接拉取 GHCR 中的 `ghcr.io/xxy0op/kanle:latest` 镜像，服务器不需要保存源码，也不需要安装 Node.js、pnpm 或 PM2。MySQL 需要使用宿主机或远程已有实例。
 
 ### 环境要求
 
 - Linux 服务器
 - Docker Engine
 - Docker Compose v2
-- GHCR 中的 kanle 镜像为 Public，或服务器已执行 `docker login ghcr.io`
+- GHCR 中的 `kanle` 镜像为 Public，或服务器已执行 `docker login ghcr.io`
+- 一台可被容器访问的 MySQL 5.7/8.0 数据库
 
 完整部署步骤见 [`DEPLOYMENT.md`](DEPLOYMENT.md)。
 
@@ -88,17 +89,16 @@ Compose 默认直接拉取 GHCR 中的 `kanle-backend` 和 `kanle-frontend` 镜�
 不需要克隆整个源码仓库，服务器只需下载部署文件：
 
 ```bash
-mkdir -p /opt/kanle/deploy
+mkdir -p /opt/kanle
 cd /opt/kanle
 
 curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
 curl -fsSL -o .env.example https://raw.githubusercontent.com/xxy0op/kanle/main/.env.example
-curl -fsSL -o deploy/nginx.compose.conf https://raw.githubusercontent.com/xxy0op/kanle/main/deploy/nginx.compose.conf
 cp .env.example .env
 vim .env
 ```
 
-至少修改 `MYSQL_ROOT_PASSWORD`、`DB_PASSWORD`、`JWT_SECRET`、`ADMIN_PASSWORD` 和 `REVALIDATE_SECRET`。域名部署时将 `CLIENT_URL` 改为站点完整地址，例如 `https://example.com`。
+至少修改 `DB_HOST`、`DB_USER`、`DB_PASSWORD`、`JWT_SECRET`、`ADMIN_PASSWORD` 和 `REVALIDATE_SECRET`。域名部署时将 `CLIENT_URL` 改为站点完整地址，例如 `https://example.com`。
 
 启动服务：
 
@@ -108,7 +108,7 @@ docker compose pull
 docker compose up -d
 ```
 
-默认访问地址是 `http://服务器IP`。如果修改了 `HTTP_PORT`，访问时带上对应端口。
+默认访问地址是 `http://服务器IP:3000`。如果修改了 `HTTP_PORT`，访问时带上对应端口。
 
 首次启动时，后端会等待 MySQL 就绪并自动创建数据表及管理员账号。已有数据库不会被 `ADMIN_PASSWORD` 覆盖；`JWT_SECRET` 必须长期保持不变。
 
@@ -140,22 +140,20 @@ docker compose up -d --force-recreate
 ```bash
 cd /opt/kanle
 curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
-curl -fsSL -o deploy/nginx.compose.conf https://raw.githubusercontent.com/xxy0op/kanle/main/deploy/nginx.compose.conf
 docker compose pull
 docker compose up -d --force-recreate
 ```
 
 ### 数据和日志
 
-Compose 会保留以下命名卷：`mysql-data`（数据库）、`backend-uploads`（上传文件）和 `backend-plugins`（音乐插件）。停止服务但保留数据使用 `docker compose down`，不要随意使用 `docker compose down -v`。
+Compose 会把 `/var/kanle` 挂载到容器的 `/app/data`，用于保存上传文件和音乐插件；MySQL 数据由外部 MySQL 服务负责持久化。停止服务但保留应用数据使用 `docker compose down`，不要删除 `/var/kanle`。
 
 ```bash
 docker compose ps
-docker compose logs --tail=100 backend
-docker compose logs --tail=100 frontend
+docker compose logs --tail=100 kanle
 ```
 
-更新前建议备份数据库和环境变量。Compose 内置 Nginx 只提供 HTTP，生产环境建议在宿主机 Nginx、Caddy、云负载均衡或 CDN 层终止 HTTPS。
+更新前建议备份数据库和环境变量。Compose 直接暴露应用的 3000 端口，生产环境建议在宿主机 Nginx、Caddy、云负载均衡或 CDN 层终止 HTTPS。
 
 ## 传统 PM2 + Nginx 部署（可选）
 
@@ -484,15 +482,16 @@ pm2 restart kanle-frontend
 | 变量 | 必填 | 默认值 | 说明 |
 |---|---|---|---|
 | `IMAGE_TAG` | 否 | `latest` | 应用镜像版本；Release 部署可设置为 `1.0.0` |
-| `MYSQL_ROOT_PASSWORD` | 是 | - | MySQL root 密码 |
+| `DB_HOST` | 是 | `host.docker.internal` | 外部 MySQL 地址 |
+| `DB_PORT` | 否 | `3306` | MySQL 端口 |
 | `DB_NAME` | 否 | `moment_blog` | 数据库名 |
-| `DB_USER` | 否 | `kanle` | 数据库业务用户 |
+| `DB_USER` | 是 | `kanle` | 数据库业务用户 |
 | `DB_PASSWORD` | 是 | - | 数据库业务用户密码 |
 | `JWT_SECRET` | 是 | - | JWT 密钥，升级时必须保持不变 |
 | `ADMIN_PASSWORD` | 是 | - | 新数据库的初始管理员密码 |
 | `REVALIDATE_SECRET` | 是 | - | 前后端服务端之间的重验证密钥 |
-| `CLIENT_URL` | 否 | `http://localhost` | 公网站点地址，用于 CORS |
-| `HTTP_PORT` | 否 | `80` | Nginx 对外端口 |
+| `CLIENT_URL` | 否 | `http://localhost:3000` | 公网站点地址，用于 CORS |
+| `HTTP_PORT` | 否 | `3000` | 应用对外端口 |
 
 完整模板见 [`.env.example`](.env.example)。
 
@@ -511,7 +510,7 @@ pm2 restart kanle-frontend
 | `ADMIN_PASSWORD` | 是 | `123456` | 初始管理员密码（仅首次创建生效） |
 | `ADMIN_USERNAME` | 否 | `admin` | 管理员用户名 |
 | `CLIENT_URL` | 否 | `http://localhost:3000` | 前端地址（CORS + revalidate 回调） |
-| `REVALIDATE_URL` | 否 | 使用 `CLIENT_URL` | Next.js 按需重验证地址；Compose 使用 `http://frontend:3000` |
+| `REVALIDATE_URL` | 否 | 使用 `CLIENT_URL` | Next.js 按需重验证地址；单容器 Compose 使用回环地址 |
 | `REVALIDATE_SECRET` | 否 | `kanle-revalidate` | 按需重验证密钥（须与前端服务端一致） |
 
 ### 前端（`frontend/.env.local`）

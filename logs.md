@@ -34,3 +34,15 @@ Progress:
 - Verification: Compose 与两个 workflow 均通过 `js-yaml` 解析；确认 Compose 无应用服务 `build` 配置且远程镜像、`IMAGE_TAG`、持久化卷均存在；部署文档已移除 Compose 的本地构建命令；`git diff --check` 通过。
 - Unresolved bugs / risks: 当前环境无法直接访问 GitHub Actions 或验证 GHCR 镜像是否已成功发布；首次推送后请确认 `ghcr.io/xxy0op/kanle-backend` 和 `ghcr.io/xxy0op/kanle-frontend` 为 Public，或在服务器执行 `docker login ghcr.io`。
 - Files changed: docker-compose.yml, .env.example, DEPLOYMENT.md, README.md, .github/workflows/publish-image.yml, .github/workflows/release-bundle.yml, logs.md
+
+## 2026-09-02 19:29 - 统一为单容器远程镜像部署
+
+Status: Completed
+
+Progress:
+- Completed: 根据用户提供的 Compose 示例和 moments 参考项目，将 Compose、GHCR 工作流和 Release 文件包调整为单一 `kanle` 应用镜像；应用数据统一持久化到 `/var/kanle:/app/data`；保留现有 MySQL 作为外部数据库；移除旧的四容器 Compose 部署文件。
+- In progress: 无。
+- Not started: 无。
+- Verification: Compose 和两个 GitHub Actions workflow 通过 `js-yaml` 解析；确认 Compose 仅包含 `kanle` 服务、远程 GHCR 镜像、`pull_policy: always`、固定容器名、3000 端口和 `/var/kanle:/app/data` 挂载；`docker-entrypoint.sh` 通过 shell 语法检查；根 Dockerfile、Release 包命令和文档检查通过；`git diff --check` 通过。
+- Unresolved bugs / risks: kanle 当前后端依赖 MySQL，不能在不迁移数据库架构的情况下直接变成 moments 式内置 SQLite；本次采用单应用容器 + 外部 MySQL。当前环境没有 Docker，无法执行真实镜像构建和启动。
+- Files changed: docker-compose.yml, Dockerfile, docker-entrypoint.sh, .dockerignore, .env.example, DEPLOYMENT.md, README.md, .github/workflows/publish-image.yml, .github/workflows/release-bundle.yml, logs.md

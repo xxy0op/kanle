@@ -5,25 +5,37 @@
 - Linux 服务器
 - Docker Engine
 - Docker Compose v2
-- GHCR 中的 kanle-backend 和 kanle-frontend 镜像为 Public，或服务器已登录 GHCR
+- 一台可被容器访问的 MySQL 5.7/8.0 数据库
+- GHCR 中的 `ghcr.io/xxy0op/kanle` 镜像为 Public，或服务器已登录 GHCR
+
+kanle 使用 MySQL 保存业务数据。参考 moments 的单容器部署方式，MySQL 不放进应用容器；可以使用已有的远程 MySQL，也可以在宿主机单独运行 MySQL。
 
 ## 快速部署
 
-无需克隆源码仓库。服务器只下载 Compose、环境变量模板和 Nginx 配置：
+无需克隆源码仓库。服务器只下载 Compose 文件和环境变量模板：
 
 ```bash
-mkdir -p /opt/kanle/deploy
+mkdir -p /opt/kanle
 cd /opt/kanle
 
 curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
 curl -fsSL -o .env.example https://raw.githubusercontent.com/xxy0op/kanle/main/.env.example
-curl -fsSL -o deploy/nginx.compose.conf https://raw.githubusercontent.com/xxy0op/kanle/main/deploy/nginx.compose.conf
-
 cp .env.example .env
 vim .env
 ```
 
-至少修改 `MYSQL_ROOT_PASSWORD`、`DB_PASSWORD`、`JWT_SECRET`、`ADMIN_PASSWORD` 和 `REVALIDATE_SECRET`。域名部署时将 `CLIENT_URL` 改为站点完整地址，例如 `https://example.com`。
+至少修改：
+
+```ini
+DB_HOST=你的MySQL地址
+DB_USER=kanle
+DB_PASSWORD=你的MySQL密码
+JWT_SECRET=长期稳定的随机密钥
+ADMIN_PASSWORD=管理员初始密码
+REVALIDATE_SECRET=随机字符串
+```
+
+如果 MySQL 在当前宿主机，保留 `DB_HOST=host.docker.internal`，并确保 MySQL 允许来自 Docker 网关的连接。如果 MySQL 在其他服务器，将 `DB_HOST` 改为数据库服务器地址。
 
 启动服务：
 
@@ -33,11 +45,17 @@ docker compose pull
 docker compose up -d
 ```
 
-默认通过 `http://服务器IP` 访问。如果修改了 `HTTP_PORT`，访问时带上对应端口。
+默认访问 `http://服务器IP:3000`。如需更换端口，修改 `.env` 中的 `HTTP_PORT`。
 
 ## Release 版本部署
 
-Release 文件包中包含同样的部署文件。解压到服务器目录后，编辑 `.env` 并设置：
+推送 `v1.0.0` 标签后，GitHub Actions 会创建 Release，并生成：
+
+- `kanle-1.0.0-deploy.zip`
+- `kanle-1.0.0-deploy.tar.gz`
+- `kanle-1.0.0-checksums.sha256`
+
+解压部署包后，在 `.env` 中指定版本：
 
 ```ini
 IMAGE_TAG=1.0.0
@@ -57,42 +75,30 @@ docker compose up -d --force-recreate
 ```bash
 cd /opt/kanle
 curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
-curl -fsSL -o deploy/nginx.compose.conf https://raw.githubusercontent.com/xxy0op/kanle/main/deploy/nginx.compose.conf
 docker compose pull
 docker compose up -d --force-recreate
 ```
 
-## 数据持久化
+## 数据和备份
 
-Compose 会保留以下命名卷：
+应用容器将 `/var/kanle` 挂载到 `/app/data`，用于保存运行数据、上传文件和音乐插件。MySQL 数据由外部 MySQL 服务负责持久化。
 
-- `mysql-data`：MySQL 数据库
-- `backend-uploads`：本地上传文件
-- `backend-plugins`：音乐插件
-
-停止服务但保留数据：
+停止服务但保留应用数据：
 
 ```bash
 docker compose down
 ```
 
-不要随意使用 `docker compose down -v`，否则会删除上述数据卷。
-
-更新前建议备份数据库：
-
-```bash
-docker compose exec -T mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' > kanle-backup.sql
-```
+不要删除 `/var/kanle`，并在升级前备份 MySQL 数据库和 `.env` 文件。
 
 ## 检查状态和日志
 
 ```bash
 docker compose ps
-docker compose logs --tail=100 backend
-docker compose logs --tail=100 frontend
-curl -I http://127.0.0.1:${HTTP_PORT:-80}/
+docker compose logs --tail=100 kanle
+curl -I http://127.0.0.1:${HTTP_PORT:-3000}/
 ```
 
 ## HTTPS
 
-Compose 内置 Nginx 提供 HTTP 入口。生产环境建议在宿主机 Nginx、Caddy、云负载均衡或 CDN 层终止 HTTPS，再将请求转发到 `HTTP_PORT`。
+Compose 直接暴露应用的 3000 端口。生产环境建议在宿主机 Nginx、Caddy、云负载均衡或 CDN 层终止 HTTPS，再反向代理到 `HTTP_PORT`。
