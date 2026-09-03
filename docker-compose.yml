@@ -8,10 +8,11 @@ services:
       NODE_ENV: production
       BACKEND_PORT: 4000
       FRONTEND_PORT: 3000
-      DB_HOST: "${DB_HOST:?Set DB_HOST in .env}"
-      DB_PORT: "${DB_PORT:-3306}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}"
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
       DB_NAME: "${DB_NAME:-moment_blog}"
-      DB_USER: "${DB_USER:?Set DB_USER in .env}"
+      DB_USER: "${DB_USER:-kanle}"
       DB_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
       JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in .env}"
       JWT_EXPIRES_IN: "${JWT_EXPIRES_IN:-7d}"
@@ -23,7 +24,5 @@ services:
       REVALIDATE_SECRET: "${REVALIDATE_SECRET:?Set REVALIDATE_SECRET in .env}"
     ports:
       - "${HTTP_PORT:-3000}:3000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - /var/kanle:/app/data

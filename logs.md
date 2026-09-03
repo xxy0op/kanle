@@ -71,3 +71,15 @@ Progress:
 - Verification: README 中的 YAML 代码块与当前 `docker-compose.yml` 内容逐字一致；README 和日志空白检查通过。
 - Unresolved bugs / risks: 尚未开始。
 - Files changed: README.md, logs.md
+
+## 2026-09-03 01:17 - 将 MySQL 整合到单容器
+
+Status: Completed
+
+Progress:
+- Completed: 将 MySQL 8、后端和前端整合到同一个 GHCR 镜像；数据库、上传文件和插件统一持久化到 `/app/data`；Compose 改为只启动一个 `kanle` 服务。
+- In progress: 无。
+- Not started: 无。
+- Verification: `docker-entrypoint.sh` shell 语法检查通过；Compose YAML 检查通过，确认单服务、内部 MySQL、`pull_policy: always`、3000 端口和 `/var/kanle:/app/data`；README 中的 Compose 配置与文件完全一致；后端 `npm run build` 和前端 `npm run build` 通过。
+- Unresolved bugs / risks: 当前环境没有 Docker，无法执行真实镜像构建、MySQL 首次初始化和容器启动验证；发布后需确认 GHCR 镜像构建成功。
+- Files changed: docker-compose.yml, Dockerfile, docker-entrypoint.sh, .env.example, DEPLOYMENT.md, README.md, logs.md

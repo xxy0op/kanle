@@ -5,10 +5,9 @@
 - Linux 服务器
 - Docker Engine
 - Docker Compose v2
-- 一台可被容器访问的 MySQL 5.7/8.0 数据库
 - GHCR 中的 `ghcr.io/xxy0op/kanle` 镜像为 Public，或服务器已登录 GHCR
 
-kanle 使用 MySQL 保存业务数据。参考 moments 的单容器部署方式，MySQL 不放进应用容器；可以使用已有的远程 MySQL，也可以在宿主机单独运行 MySQL。
+kanle 的 Docker 镜像内置 MySQL 8、后端和 Next.js 前端。Compose 只启动一个 `kanle` 容器，不需要在宿主机单独安装 MySQL、Node.js、pnpm 或 PM2。
 
 ## 快速部署
 
@@ -24,18 +23,15 @@ cp .env.example .env
 vim .env
 ```
 
-至少修改：
+至少修改以下密码和密钥：
 
 ```ini
-DB_HOST=你的MySQL地址
-DB_USER=kanle
-DB_PASSWORD=你的MySQL密码
+MYSQL_ROOT_PASSWORD=MySQL_root_强密码
+DB_PASSWORD=MySQL_业务用户_强密码
 JWT_SECRET=长期稳定的随机密钥
 ADMIN_PASSWORD=管理员初始密码
 REVALIDATE_SECRET=随机字符串
 ```
-
-如果 MySQL 在当前宿主机，保留 `DB_HOST=host.docker.internal`，并确保 MySQL 允许来自 Docker 网关的连接。如果 MySQL 在其他服务器，将 `DB_HOST` 改为数据库服务器地址。
 
 启动服务：
 
@@ -45,7 +41,9 @@ docker compose pull
 docker compose up -d
 ```
 
-默认访问 `http://服务器IP:3000`。如需更换端口，修改 `.env` 中的 `HTTP_PORT`。
+默认访问地址为 `http://服务器IP:3000`。如果修改了 `HTTP_PORT`，访问时带上对应端口。
+
+首次启动时，容器会初始化 MySQL 数据库、创建业务用户和数据表，然后创建初始管理员账号。已有数据库不会被 `ADMIN_PASSWORD` 覆盖；修改 `MYSQL_ROOT_PASSWORD` 前必须确认数据库当前 root 密码是否一致。
 
 ## Release 版本部署
 
@@ -55,7 +53,7 @@ docker compose up -d
 - `kanle-1.0.0-deploy.tar.gz`
 - `kanle-1.0.0-checksums.sha256`
 
-解压部署包后，在 `.env` 中指定版本：
+解压 Release 文件包后，在 `.env` 中设置：
 
 ```ini
 IMAGE_TAG=1.0.0
@@ -75,21 +73,26 @@ docker compose up -d --force-recreate
 ```bash
 cd /opt/kanle
 curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
+curl -fsSL -o .env.example https://raw.githubusercontent.com/xxy0op/kanle/main/.env.example
 docker compose pull
 docker compose up -d --force-recreate
 ```
 
 ## 数据和备份
 
-应用容器将 `/var/kanle` 挂载到 `/app/data`，用于保存运行数据、上传文件和音乐插件。MySQL 数据由外部 MySQL 服务负责持久化。
+Compose 将宿主机 `/var/kanle` 挂载到容器 `/app/data`，其中包括：
 
-停止服务但保留应用数据：
+- `/var/kanle/mysql`：MySQL 数据库
+- `/var/kanle/uploads`：上传文件
+- `/var/kanle/plugins`：音乐插件
+
+停止服务但保留数据：
 
 ```bash
 docker compose down
 ```
 
-不要删除 `/var/kanle`，并在升级前备份 MySQL 数据库和 `.env` 文件。
+不要删除 `/var/kanle`。更新前建议备份数据库、上传文件、插件和 `.env` 文件。
 
 ## 检查状态和日志
 
