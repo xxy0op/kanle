@@ -83,3 +83,15 @@ Progress:
 - Verification: `docker-entrypoint.sh` shell 语法检查通过；Compose YAML 检查通过，确认单服务、内部 MySQL、`pull_policy: always`、3000 端口和 `/var/kanle:/app/data`；README 中的 Compose 配置与文件完全一致；后端 `npm run build` 和前端 `npm run build` 通过。
 - Unresolved bugs / risks: 当前环境没有 Docker，无法执行真实镜像构建、MySQL 首次初始化和容器启动验证；发布后需确认 GHCR 镜像构建成功。
 - Files changed: docker-compose.yml, Dockerfile, docker-entrypoint.sh, .env.example, DEPLOYMENT.md, README.md, logs.md
+
+## 2026-09-04 00:00 - 修复多架构镜像 manifest 错误
+
+Status: In progress
+
+Progress:
+- Completed: 根据 GitHub Actions 失败日志确认 `mysql:8.0-bookworm` 没有 arm64 manifest，而发布工作流要求 amd64/arm64。
+- In progress: 改用支持 amd64/arm64 的 `mysql:8.0` 标签，并移除 Oracle Linux 基础镜像不支持的 `apt-get` 步骤。
+- Not started: 本地静态检查、提交并重新运行远程 Actions。
+- Verification: 尚未开始。
+- Unresolved bugs / risks: 当前环境没有 Docker，无法本地执行多架构 Buildx 构建；需以 GitHub Actions 结果为最终验证。
+- Files changed: Dockerfile, logs.md

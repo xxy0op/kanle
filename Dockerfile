@@ -42,7 +42,7 @@ RUN npm run build
 
 FROM node:20-bookworm-slim AS node-runtime
 
-FROM mysql:8.0-bookworm AS runtime
+FROM mysql:8.0 AS runtime
 
 WORKDIR /app
 
@@ -52,10 +52,6 @@ ENV BACKEND_PORT=4000
 ENV FRONTEND_PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV BACKEND_URL=http://127.0.0.1:4000
-
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates libstdc++6 \
-  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY --from=backend-runtime-deps /src/backend/node_modules ./backend/node_modules
