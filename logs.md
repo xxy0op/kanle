@@ -145,3 +145,28 @@ Progress:
 - Verification: `docker-entrypoint.sh` shell 语法检查通过；Compose YAML 验证通过且不再暴露密钥参数；README Compose 代码块与文件完全一致；随机生成、600 权限持久化、管理员日志输出、旧数据迁移分支和 Release 版本替换检查通过；后端 `npm run build` 和前端 `npm run build` 通过；`git diff --check` 通过。
 - Unresolved bugs / risks: 旧版本已有 MySQL 数据但没有 `.env.generated` 时，无法安全推断原 root 密码；启动脚本会停止并要求临时提供旧密码。当前环境没有 Docker，未执行真实镜像构建和容器启动。
 - Files changed: docker-compose.yml, docker-entrypoint.sh, .env.example, README.md, DEPLOYMENT.md, .github/workflows/release-bundle.yml, logs.md
+
+## 2026-09-04 16:56 - 发布自动生成密钥版本
+
+Status: Completed
+
+Progress:
+- Completed: 提交并推送自动生成密钥改动；创建 `v1.0.3` 标签；Release 和 GHCR 镜像均完成发布。
+- Completed: 确认 v1.0.3 多架构镜像工作流成功，Release 包包含 ZIP、TAR.GZ 和 SHA256 校验文件。
+- In progress: 无。
+- Not started: 无。
+- Verification: 提交 `9859b13` 已同步到远端 `main`；镜像工作流 `33854488588` 成功；Release 工作流 `33854488639` 成功；远端 `v1.0.3` Release 已生成 3 个资产。
+- Unresolved bugs / risks: 当前环境未安装 Docker，未执行本地容器启动验证；管理员初始密码只会在首次创建管理员时输出，日志被清理后需从 `/var/kanle/.env.generated` 恢复。
+- Files changed: docker-compose.yml, docker-entrypoint.sh, .env.example, README.md, DEPLOYMENT.md, .github/workflows/release-bundle.yml, logs.md；远端已发布 `v1.0.3`。
+## 2026-09-04 22:55 - 修复后台入口并切换 Cloudflare R2 存储
+
+Status: Completed
+
+Progress:
+- Completed: 修复首页侧栏后台菜单从底部向上展开并提高层级，避免入口被侧栏滚动区域裁切；删除又拍云服务、迁移服务和旧的云存储选项，接入 Cloudflare R2 S3 上传/删除/连接测试及后台配置页面。
+- Completed: 增加已有数据库的 R2 配置列自动迁移；媒体库统一使用 `r2` / `local` 存储类型；README 和 DEPLOYMENT 改为仅 Docker/Docker Compose，并加入直接 `docker run` 方式；删除 PM2/Nginx 部署文件。
+- In progress: 无。
+- Not started: 无。
+- Verification: Cloudflare 官方 R2 S3 endpoint 文档已核对；`npm install @aws-sdk/client-s3` 完成；后端 `npm run build` 通过；前端 `npm run build` 通过；`git diff --check` 通过；旧云存储和旧部署关键词已清理；当前机器未安装 Docker，无法执行真实镜像构建与容器启动。
+- Unresolved bugs / risks: R2 需要在后台填写 Account ID、API Token、Bucket 和公开访问域名；npm 安装报告 7 个依赖安全审计告警，未执行可能带来破坏性升级的 `npm audit fix --force`。
+- Files changed: .env.example, DEPLOYMENT.md, README.md, Docker deployment files, backend package files, backend R2 service/routes/models, frontend storage/media/sidebar files, logs.md

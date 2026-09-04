@@ -152,6 +152,55 @@ async function bootstrap() {
       console.warn("Migration check for 51.la config columns skipped:", (e as Error).message);
     }
 
+    // Migration: ensure Cloudflare R2 storage config columns exist.
+    try {
+      const columns = [
+        ["r2Enabled", "BOOLEAN NOT NULL DEFAULT FALSE"],
+        ["r2AccountId", "VARCHAR(64) NOT NULL DEFAULT ''"],
+        ["r2AccessKeyId", "VARCHAR(255) NOT NULL DEFAULT ''"],
+        ["r2SecretAccessKey", "VARCHAR(255) NOT NULL DEFAULT ''"],
+        ["r2Bucket", "VARCHAR(100) NOT NULL DEFAULT ''"],
+        ["r2PublicDomain", "VARCHAR(255) NOT NULL DEFAULT ''"],
+        ["r2Path", "VARCHAR(255) NOT NULL DEFAULT ''"],
+      ];
+      for (const [column, definition] of columns) {
+        const [rows] = await sequelize.query(
+          `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'site_settings' AND COLUMN_NAME = '${column}'`
+        );
+        if (Array.isArray(rows) && rows.length === 0) {
+          await sequelize.query(
+            `ALTER TABLE \`site_settings\` ADD COLUMN \`${column}\` ${definition}`
+          );
+          console.log(`Migration: ${column} column added to site_settings.`);
+        }
+      }
+    } catch (e) {
+      console.warn("Migration check for Cloudflare R2 config skipped:", (e as Error).message);
+    }
+
+    // Migration: remove legacy Upyun config columns. Existing media records/files are kept.
+    try {
+      const legacyColumns = [
+        "upyunEnabled",
+        "upyunBucket",
+        "upyunOperator",
+        "upyunPassword",
+        "upyunDomain",
+        "upyunPath",
+      ];
+      for (const column of legacyColumns) {
+        const [rows] = await sequelize.query(
+          `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'site_settings' AND COLUMN_NAME = '${column}'`
+        );
+        if (Array.isArray(rows) && rows.length > 0) {
+          await sequelize.query(`ALTER TABLE \`site_settings\` DROP COLUMN \`${column}\``);
+          console.log(`Migration: legacy ${column} column removed from site_settings.`);
+        }
+      }
+    } catch (e) {
+      console.warn("Migration cleanup for legacy Upyun config skipped:", (e as Error).message);
+    }
+
     // 启动时清理已过期的黑名单记录
     try {
       const { blacklistService } = await import("./services/blacklist-service");

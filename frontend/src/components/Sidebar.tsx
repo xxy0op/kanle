@@ -389,11 +389,11 @@ export default function Sidebar({ owner }: SidebarProps) {
           {/* Auth buttons: login / publish / logout */}
           <div className={socialLinks.length > 0 ? "mt-3 border-t border-black/5 pt-3 dark:border-white/5" : ""}>
             {loggedIn ? (
-              <div className="flex items-center gap-2">
+              <div className="relative z-20 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowPublish(true)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-wechat-nickname/10 px-3 py-2 text-xs font-medium text-wechat-nickname transition-colors hover:bg-wechat-nickname/20"
+                  className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-wechat-nickname/10 px-3 py-2 text-xs font-medium text-wechat-nickname transition-colors hover:bg-wechat-nickname/20"
                 >
                   <Camera className="h-3.5 w-3.5" />
                   发表动态
@@ -403,14 +403,14 @@ export default function Sidebar({ owner }: SidebarProps) {
                   <button
                     type="button"
                     onClick={() => setShowUserMenu((v) => !v)}
-                    className="flex items-center justify-center rounded-lg bg-wechat-hover px-3 py-2 text-wechat-time transition-colors hover:bg-gray-300 dark:bg-white/5 dark:hover:bg-white/10"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-wechat-hover px-3 py-2 text-wechat-time transition-colors hover:bg-gray-300 dark:bg-white/5 dark:hover:bg-white/10"
                     title="更多"
                     aria-label="更多操作"
                   >
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                   {showUserMenu && (
-                    <div className="animate-dropdown-in absolute right-0 top-full z-50 mt-1.5 w-36 overflow-hidden rounded-xl border border-wechat-border bg-wechat-white shadow-xl dark:border-white/10 dark:bg-[#2c2c30]">
+                    <div className="animate-dropdown-in absolute bottom-full right-0 z-[70] mb-1.5 w-36 overflow-hidden rounded-xl border border-wechat-border bg-wechat-white shadow-xl dark:border-white/10 dark:bg-[#2c2c30]">
                       <Link
                         href="/admin"
                         target="_blank"

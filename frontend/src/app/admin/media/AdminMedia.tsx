@@ -25,7 +25,7 @@ interface MediaItem {
   id: string;
   filename: string;
   url: string;
-  storageType: "upyun" | "local";
+  storageType: "r2" | "local";
   mimeType: string;
   size: number;
   category: "image" | "video" | "audio" | "file";
@@ -435,7 +435,7 @@ function MediaCard({ item, onClick }: { item: MediaItem; onClick: () => void }) 
 
       {/* 存储类型角标 */}
       <div className="absolute right-1 top-1 flex items-center gap-0.5 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] text-white backdrop-blur-sm">
-        {item.storageType === "upyun" ? (
+        {item.storageType === "r2" ? (
           <Cloud className="h-2.5 w-2.5" />
         ) : (
           <HardDrive className="h-2.5 w-2.5" />
@@ -569,8 +569,8 @@ function MediaDetailModal({
             <div className="flex justify-between">
               <span className="text-adm-text-tertiary">存储位置</span>
               <span className="flex items-center gap-1 text-adm-text-secondary">
-                {item.storageType === "upyun" ? (
-                  <><Cloud className="h-3 w-3" /> 又拍云</>
+                {item.storageType === "r2" ? (
+                  <><Cloud className="h-3 w-3" /> Cloudflare R2</>
                 ) : (
                   <><HardDrive className="h-3 w-3" /> 本地</>
                 )}

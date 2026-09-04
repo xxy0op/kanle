@@ -27,12 +27,13 @@ interface SiteSettingAttributes {
   smtpPass: string;
   smtpFrom: string;
   emailTemplate: string;
-  upyunEnabled: boolean;
-  upyunBucket: string;
-  upyunOperator: string;
-  upyunPassword: string;
-  upyunDomain: string;
-  upyunPath: string;
+  r2Enabled: boolean;
+  r2AccountId: string;
+  r2AccessKeyId: string;
+  r2SecretAccessKey: string;
+  r2Bucket: string;
+  r2PublicDomain: string;
+  r2Path: string;
   amapJsKey: string;
   amapSecurityJsCode: string;
   amapKey: string;
@@ -67,7 +68,7 @@ interface SiteSettingAttributes {
 
 interface SiteSettingCreationAttributes extends Optional<
   SiteSettingAttributes,
-  "id" | "siteName" | "description" | "keywords" | "domain" | "beian" | "faviconUrl" | "ogImage" | "musicUrl" | "musicId" | "musicSource" | "playlistId" | "backgroundImages" | "darkModeEnabled" | "darkModeStartTime" | "darkModeEndTime" | "emailNotifyEnabled" | "notifyEmail" | "smtpHost" | "smtpPort" | "smtpSecure" | "smtpUser" | "smtpPass" | "smtpFrom" | "emailTemplate" | "upyunEnabled" | "upyunBucket" | "upyunOperator" | "upyunPassword" | "upyunDomain" | "upyunPath" | "amapJsKey" | "amapSecurityJsCode" | "amapKey" | "beianUrl" | "socialLinks" | "postCollapseLength" | "fontUrl" | "adOnArchives" | "commentAntiSpamEnabled" | "rssEnabled" | "rssIncludeMoments" | "doubanId" | "bannedWords" | "musicAutoplay" | "cdnProxyUrl" | "analyticsCode" | "laAccessKey" | "laSecretKey" | "laMaskId"
+  "id" | "siteName" | "description" | "keywords" | "domain" | "beian" | "faviconUrl" | "ogImage" | "musicUrl" | "musicId" | "musicSource" | "playlistId" | "backgroundImages" | "darkModeEnabled" | "darkModeStartTime" | "darkModeEndTime" | "emailNotifyEnabled" | "notifyEmail" | "smtpHost" | "smtpPort" | "smtpSecure" | "smtpUser" | "smtpPass" | "smtpFrom" | "emailTemplate" | "r2Enabled" | "r2AccountId" | "r2AccessKeyId" | "r2SecretAccessKey" | "r2Bucket" | "r2PublicDomain" | "r2Path" | "amapJsKey" | "amapSecurityJsCode" | "amapKey" | "beianUrl" | "socialLinks" | "postCollapseLength" | "fontUrl" | "adOnArchives" | "commentAntiSpamEnabled" | "rssEnabled" | "rssIncludeMoments" | "doubanId" | "bannedWords" | "musicAutoplay" | "cdnProxyUrl" | "analyticsCode" | "laAccessKey" | "laSecretKey" | "laMaskId"
 > {}
 
 class SiteSetting
@@ -99,12 +100,13 @@ class SiteSetting
   declare smtpPass: string;
   declare smtpFrom: string;
   declare emailTemplate: string;
-  declare upyunEnabled: boolean;
-  declare upyunBucket: string;
-  declare upyunOperator: string;
-  declare upyunPassword: string;
-  declare upyunDomain: string;
-  declare upyunPath: string;
+  declare r2Enabled: boolean;
+  declare r2AccountId: string;
+  declare r2AccessKeyId: string;
+  declare r2SecretAccessKey: string;
+  declare r2Bucket: string;
+  declare r2PublicDomain: string;
+  declare r2Path: string;
   declare amapJsKey: string;
   declare amapSecurityJsCode: string;
   declare amapKey: string;
@@ -256,32 +258,37 @@ SiteSetting.init(
       allowNull: false,
       defaultValue: "",
     },
-    upyunEnabled: {
+    r2Enabled: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
     },
-    upyunBucket: {
-      type: DataTypes.STRING(100),
+    r2AccountId: {
+      type: DataTypes.STRING(64),
       allowNull: false,
       defaultValue: "",
     },
-    upyunOperator: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-      defaultValue: "",
-    },
-    upyunPassword: {
+    r2AccessKeyId: {
       type: DataTypes.STRING(255),
       allowNull: false,
       defaultValue: "",
     },
-    upyunDomain: {
+    r2SecretAccessKey: {
       type: DataTypes.STRING(255),
       allowNull: false,
       defaultValue: "",
     },
-    upyunPath: {
+    r2Bucket: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: "",
+    },
+    r2PublicDomain: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      defaultValue: "",
+    },
+    r2Path: {
       type: DataTypes.STRING(255),
       allowNull: false,
       defaultValue: "",

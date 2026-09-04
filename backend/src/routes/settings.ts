@@ -96,13 +96,14 @@ router.put(
     body("smtpPass").optional().trim().isLength({ max: 255 }),
     body("smtpFrom").optional().trim().isLength({ max: 255 }),
     body("emailTemplate").optional().isString(),
-    // Upyun config
-    body("upyunEnabled").optional().isBoolean(),
-    body("upyunBucket").optional().trim().isLength({ max: 100 }),
-    body("upyunOperator").optional().trim().isLength({ max: 100 }),
-    body("upyunPassword").optional().trim().isLength({ max: 255 }),
-    body("upyunDomain").optional().trim().isLength({ max: 255 }),
-    body("upyunPath").optional().trim().isLength({ max: 255 }),
+    // Cloudflare R2 (S3-compatible) config
+    body("r2Enabled").optional().isBoolean(),
+    body("r2AccountId").optional().trim().isLength({ max: 64 }),
+    body("r2AccessKeyId").optional().trim().isLength({ max: 255 }),
+    body("r2SecretAccessKey").optional().trim().isLength({ max: 255 }),
+    body("r2Bucket").optional().trim().isLength({ max: 100 }),
+    body("r2PublicDomain").optional().trim().isLength({ max: 255 }),
+    body("r2Path").optional().trim().isLength({ max: 255 }),
     // Amap config
     body("amapKey").optional().trim().isLength({ max: 255 }),
     body("amapJsKey").optional().trim().isLength({ max: 255 }),
@@ -155,12 +156,13 @@ router.put(
       smtpPass: req.body.smtpPass ?? setting.smtpPass,
       smtpFrom: req.body.smtpFrom ?? setting.smtpFrom,
       emailTemplate: req.body.emailTemplate ?? setting.emailTemplate,
-      upyunEnabled: req.body.upyunEnabled ?? setting.upyunEnabled,
-      upyunBucket: req.body.upyunBucket ?? setting.upyunBucket,
-      upyunOperator: req.body.upyunOperator ?? setting.upyunOperator,
-      upyunPassword: req.body.upyunPassword ?? setting.upyunPassword,
-      upyunDomain: req.body.upyunDomain ?? setting.upyunDomain,
-      upyunPath: req.body.upyunPath ?? setting.upyunPath,
+      r2Enabled: req.body.r2Enabled ?? setting.r2Enabled,
+      r2AccountId: req.body.r2AccountId ?? setting.r2AccountId,
+      r2AccessKeyId: req.body.r2AccessKeyId ?? setting.r2AccessKeyId,
+      r2SecretAccessKey: req.body.r2SecretAccessKey ?? setting.r2SecretAccessKey,
+      r2Bucket: req.body.r2Bucket ?? setting.r2Bucket,
+      r2PublicDomain: req.body.r2PublicDomain ?? setting.r2PublicDomain,
+      r2Path: req.body.r2Path ?? setting.r2Path,
       amapKey: req.body.amapKey ?? setting.amapKey,
       amapJsKey: req.body.amapJsKey ?? setting.amapJsKey,
       amapSecurityJsCode: req.body.amapSecurityJsCode ?? setting.amapSecurityJsCode,
@@ -216,16 +218,17 @@ router.get("/email-config", authenticate, requireAdmin, async (_req: AuthRequest
   });
 });
 
-// GET /api/settings/upyun-config - upyun config (admin only, includes upyunPassword)
-router.get("/upyun-config", authenticate, requireAdmin, async (_req: AuthRequest, res: Response) => {
+// GET /api/settings/r2-config - Cloudflare R2 config (admin only)
+router.get("/r2-config", authenticate, requireAdmin, async (_req: AuthRequest, res: Response) => {
   const setting = await ensureSetting();
   res.json({
-    upyunEnabled: setting.upyunEnabled,
-    upyunBucket: setting.upyunBucket,
-    upyunOperator: setting.upyunOperator,
-    upyunPassword: setting.upyunPassword,
-    upyunDomain: setting.upyunDomain,
-    upyunPath: setting.upyunPath,
+    r2Enabled: setting.r2Enabled,
+    r2AccountId: setting.r2AccountId,
+    r2AccessKeyId: setting.r2AccessKeyId,
+    r2SecretAccessKey: setting.r2SecretAccessKey,
+    r2Bucket: setting.r2Bucket,
+    r2PublicDomain: setting.r2PublicDomain,
+    r2Path: setting.r2Path,
   });
 });
 

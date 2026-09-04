@@ -1,8 +1,8 @@
 /**
  * 上传路由
- * 图片/音频/视频上传，自动根据又拍云配置选择存储方式。
+ * 图片/音频/视频上传，自动根据 Cloudflare R2 配置选择存储方式。
  * 所有上传的文件都会记录到 Media 表（媒体库）。
- * 又拍云启用时返回 CDN 绝对 URL，未启用时返回本地相对路径。
+ * R2 启用时返回公开域名绝对 URL，未启用时返回本地相对路径。
  */
 import { Router } from "express";
 import path from "path";
@@ -11,12 +11,7 @@ import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import { authenticate, requireAdmin, AuthRequest } from "../middleware/auth";
 import { Media, User } from "../models";
-import {
-  isUpyunReady,
-  uploadToUpyun,
-  getUpyunConfig,
-} from "../services/upyun-service";
-import { migrateLocalToUpyun } from "../services/migrate-service";
+import { getR2Config, isR2Ready, testR2Connection, uploadToR2 } from "../services/r2-service";
 import { extractMotionPhoto } from "../services/motion-photo";
 
 const router = Router();
@@ -114,7 +109,7 @@ function buildLocalPath(originalName: string): { url: string; fullPath: string }
   };
 }
 
-/** 生成又拍云远程路径 */
+/** 生成 R2 对象路径 */
 function buildRemotePath(pathPrefix: string, originalName: string): string {
   const ext = path.extname(originalName) || "";
   const now = new Date();
@@ -127,27 +122,27 @@ function buildRemotePath(pathPrefix: string, originalName: string): string {
     : `${year}/${month}/${fileName}`;
 }
 
-/** 统一的文件存储处理：又拍云优先，本地回退 */
+/** 统一的文件存储处理：R2 优先，本地回退 */
 async function storeFile(
   buffer: Buffer,
   originalName: string,
   mimeType: string,
   uploaderId: string
-): Promise<{ url: string; storageType: "upyun" | "local"; mediaId: string }> {
+): Promise<{ url: string; storageType: "r2" | "local"; mediaId: string }> {
   let url: string;
-  let storageType: "upyun" | "local";
+  let storageType: "r2" | "local";
 
-  const upyunReady = await isUpyunReady();
+  const r2Ready = await isR2Ready();
 
-  if (upyunReady) {
+  if (r2Ready) {
     try {
-      const cfg = await getUpyunConfig();
+      const cfg = await getR2Config();
       const remotePath = buildRemotePath(cfg.path, originalName);
-      url = await uploadToUpyun(buffer, remotePath, mimeType);
-      storageType = "upyun";
+      url = await uploadToR2(buffer, remotePath, mimeType);
+      storageType = "r2";
     } catch (err: any) {
-      // 又拍云上传失败，回退到本地
-      console.error(`[upload] 又拍云上传失败，回退本地: ${err.message}`);
+      // R2 上传失败，回退到本地
+      console.error(`[upload] Cloudflare R2 上传失败，回退本地: ${err.message}`);
       const local = buildLocalPath(originalName);
       fs.writeFileSync(local.fullPath, buffer);
       url = local.url;
@@ -304,53 +299,32 @@ router.post(
   }
 );
 
-// POST /api/upload/test-upyun - test Upyun connection (admin only)
+// POST /api/upload/test-r2 - test Cloudflare R2 connection (admin only)
 router.post(
-  "/test-upyun",
+  "/test-r2",
   authenticate,
   requireAdmin,
   async (_req: AuthRequest, res) => {
     try {
-      const ready = await isUpyunReady();
+      const ready = await isR2Ready();
       if (!ready) {
         res.status(400).json({
           success: false,
-          message: "又拍云未启用或配置不完整（需要启用 + bucket + 操作员 + 密码 + 域名）",
+          message: "Cloudflare R2 未启用或配置不完整（需要启用 + Account ID + Access Key + Secret Key + Bucket + 公开访问域名）",
         });
         return;
       }
-      const cfg = await getUpyunConfig();
-      const testBuffer = Buffer.from("upyun-connection-test");
-      const testPath = `test/conn-${Date.now()}.txt`;
-      const url = await uploadToUpyun(testBuffer, testPath, "text/plain");
+      const { url } = await testR2Connection();
       res.json({
         success: true,
-        message: "连接成功，文件已上传到又拍云",
+        message: "连接成功，R2 测试对象已创建并清理",
         url,
         https: url.startsWith("https://"),
       });
     } catch (err: any) {
       res.status(400).json({
         success: false,
-        message: err.message || "又拍云连接失败",
-      });
-    }
-  }
-);
-
-// POST /api/upload/migrate-to-upyun - 迁移本地文件到又拍云（管理员）
-router.post(
-  "/migrate-to-upyun",
-  authenticate,
-  requireAdmin,
-  async (_req: AuthRequest, res) => {
-    try {
-      const result = await migrateLocalToUpyun();
-      res.json({ success: true, result });
-    } catch (err: any) {
-      res.status(500).json({
-        success: false,
-        message: err.message || "迁移失败",
+        message: err.message || "Cloudflare R2 连接失败",
       });
     }
   }

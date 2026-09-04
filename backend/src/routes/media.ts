@@ -1,7 +1,7 @@
 /**
  * 媒体库路由
  * 提供媒体文件的列表、上传、删除功能。
- * 上传时根据又拍云配置自动选择存储方式（又拍云 / 本地）。
+ * 上传时根据 Cloudflare R2 配置自动选择存储方式（R2 / 本地）。
  * 所有上传的文件都会记录到 Media 表中，形成 WordPress 风格的媒体库。
  */
 import { Router, Request, Response } from "express";
@@ -13,12 +13,12 @@ import { param, validationResult } from "express-validator";
 import { Media, User, Post, FriendLink, SiteSetting, getMediaCategory } from "../models";
 import { authenticate, requireAdmin, AuthRequest } from "../middleware/auth";
 import {
-  isUpyunReady,
-  uploadToUpyun,
-  deleteFromUpyun,
-  extractRemotePath,
-  getUpyunConfig,
-} from "../services/upyun-service";
+  deleteFromR2,
+  extractR2Key,
+  getR2Config,
+  isR2Ready,
+  uploadToR2,
+} from "../services/r2-service";
 
 const router = Router();
 
@@ -28,7 +28,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// memoryStorage：文件暂存内存，由路由处理器决定存到又拍云还是本地
+// memoryStorage：文件暂存内存，由路由处理器决定存到 R2 还是本地
 const mediaStorage = multer.memoryStorage();
 
 // 通用上传：图片 5MB / 音频 20MB / 视频 50MB / 其他文件 50MB
@@ -177,17 +177,17 @@ router.post(
     const originalName = file.originalname;
 
     let url: string;
-    let storageType: "upyun" | "local";
+    let storageType: "r2" | "local";
 
     try {
-      const upyunReady = await isUpyunReady();
+      const r2Ready = await isR2Ready();
 
-      if (upyunReady) {
-        // 上传到又拍云
-        const cfg = await getUpyunConfig();
+      if (r2Ready) {
+        // 上传到 Cloudflare R2
+        const cfg = await getR2Config();
         const remotePath = buildRemotePath(cfg.path, originalName);
-        url = await uploadToUpyun(file.buffer, remotePath, mimeType);
-        storageType = "upyun";
+        url = await uploadToR2(file.buffer, remotePath, mimeType);
+        storageType = "r2";
       } else {
         // 保存到本地磁盘
         const { filename, subdir } = buildLocalFilename(originalName);
@@ -241,16 +241,12 @@ router.delete(
     }
 
     // 删除远端文件
-    if (media.storageType === "upyun") {
+    if (media.storageType === "r2") {
       try {
-        const cfg = await getUpyunConfig();
-        const remotePath = extractRemotePath(media.url, cfg.domain, cfg.path);
-        if (remotePath) {
-          await deleteFromUpyun(remotePath);
-        }
+        await deleteFromR2(extractR2Key(media.url));
       } catch {
         // 远端删除失败不阻塞，仅记录
-        console.log(`[media] 又拍云文件删除失败: ${media.url}`);
+        console.log(`[media] Cloudflare R2 文件删除失败: ${media.url}`);
       }
     } else if (media.storageType === "local") {
       // 删除本地文件
@@ -354,8 +350,8 @@ function isLocalUploadUrl(url: string): boolean {
  * 导入流程：
  * 1. 扫描本地 /uploads/ 目录递归所有文件
  * 2. 对每个文件，按 url 查重；已存在则跳过
- * 3. 扫描数据库（posts/users/friend_links/site_settings）中引用的又拍云 URL
- *    为未登记的又拍云文件创建 Media 记录
+ * 3. 扫描数据库（posts/users/friend_links/site_settings）中引用的 R2 URL
+ *    为未登记的 R2 文件创建 Media 记录
  * 4. 扫描 posts.images 中所有 {src, video} 配对，回填 livePhotoVideo / livePhotoImage
  *
  * 默认 uploader 使用第一个管理员用户。
@@ -379,7 +375,7 @@ router.post(
       let imported = 0;
       let skipped = 0;
       let failed = 0;
-      let cloudImported = 0;
+      let r2Imported = 0;
 
       // 2. 扫描本地 uploads 目录
       const scanned = scanUploadDir(uploadDir, uploadDir);
@@ -411,13 +407,13 @@ router.post(
         }
       }
 
-      // 3. 扫描数据库引用的又拍云 URL
-      const cfg = await getUpyunConfig();
-      const cloudDomain = cfg.domain;
+      // 3. 扫描数据库引用的 Cloudflare R2 URL
+      const cfg = await getR2Config();
+      const cloudDomain = cfg.publicDomain;
       if (cloudDomain) {
         const cloudUrls = new Set<string>();
 
-        // 收集所有可能引用又拍云文件的 URL
+        // 收集所有可能引用 R2 文件的 URL
         // posts.images (string[] | {src, video}[])
         const posts = await Post.findAll({ attributes: ["id", "images", "video", "music", "linkCard", "adAvatar"] });
         for (const post of posts) {
@@ -476,11 +472,11 @@ router.post(
           if (s.fontUrl) cloudUrls.add(s.fontUrl);
         }
 
-        // 筛选出又拍云域名的 URL，排除本地 /uploads/ 和外部 URL
+        // 筛选出 R2 公开域名的 URL，排除本地 /uploads/ 和外部 URL
         for (const url of cloudUrls) {
           if (!url || typeof url !== "string") continue;
           if (isLocalUploadUrl(url)) continue; // 本地文件已在上面扫描
-          if (!url.startsWith(cloudDomain)) continue; // 非又拍云域名跳过
+          if (!url.startsWith(cloudDomain)) continue; // 非 R2 域名跳过
           try {
             const existing = await Media.findOne({ where: { url }, attributes: ["id"] });
             if (existing) {
@@ -492,14 +488,14 @@ router.post(
             await Media.create({
               filename,
               url,
-              storageType: "upyun",
+              storageType: "r2",
               mimeType,
-              size: 0, // 又拍云文件无法直接获取大小
+              size: 0, // 公开 R2 URL 无法直接获取文件大小
               uploaderId: admin.id,
               livePhotoVideo: null,
               livePhotoImage: null,
             });
-            cloudImported++;
+            r2Imported++;
           } catch {
             failed++;
           }
@@ -543,8 +539,8 @@ router.post(
       }
 
       res.json({
-        message: `导入完成：本地新增 ${imported} 个，又拍云新增 ${cloudImported} 个，跳过 ${skipped} 个已存在，失败 ${failed} 个，实况图配对 ${pairsLinked} 对`,
-        stats: { imported, cloudImported, skipped, failed, pairsLinked, totalScanned: scanned.length },
+        message: `导入完成：本地新增 ${imported} 个，R2 新增 ${r2Imported} 个，跳过 ${skipped} 个已存在，失败 ${failed} 个，实况图配对 ${pairsLinked} 对`,
+        stats: { imported, r2Imported, skipped, failed, pairsLinked, totalScanned: scanned.length },
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "导入失败" });

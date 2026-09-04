@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
-export type StorageType = "upyun" | "local";
+export type StorageType = "r2" | "local";
 
 export type MediaCategory = "image" | "video" | "audio" | "file";
 
