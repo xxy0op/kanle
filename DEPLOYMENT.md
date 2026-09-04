@@ -19,19 +19,9 @@ cd /opt/kanle
 
 curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
 curl -fsSL -o .env.example https://raw.githubusercontent.com/xxy0op/kanle/main/.env.example
-cp .env.example .env
-vim .env
 ```
 
-至少修改以下密码和密钥：
-
-```ini
-MYSQL_ROOT_PASSWORD=MySQL_root_强密码
-DB_PASSWORD=MySQL_业务用户_强密码
-JWT_SECRET=长期稳定的随机密钥
-ADMIN_PASSWORD=管理员初始密码
-REVALIDATE_SECRET=随机字符串
-```
+不需要手动填写数据库密码、JWT 密钥、重验证密钥或管理员密码。首次启动时容器会自动生成这些值，并以 600 权限保存到 `/var/kanle/.env.generated`。
 
 启动服务：
 
@@ -41,32 +31,38 @@ docker compose pull
 docker compose up -d
 ```
 
-默认访问地址为 `http://服务器IP:3000`。如果修改了 `HTTP_PORT`，访问时带上对应端口。
+默认访问地址为 `http://服务器IP:3000`。
 
-首次启动时，容器会初始化 MySQL 数据库、创建业务用户和数据表，然后创建初始管理员账号。已有数据库不会被 `ADMIN_PASSWORD` 覆盖；修改 `MYSQL_ROOT_PASSWORD` 前必须确认数据库当前 root 密码是否一致。
+首次启动时，容器会初始化 MySQL 数据库、创建业务用户和数据表，然后创建初始管理员账号。管理员初始密码会输出到日志：
+
+```bash
+docker compose logs kanle
+```
+
+生成的密钥和密码会持久化，容器重启后不会变化。
+
+如果是从旧版本升级，且 `/var/kanle/mysql` 已存在但没有 `/var/kanle/.env.generated`，需要首次启动时临时提供旧的 MySQL root 密码：
+
+```bash
+docker compose run --rm -e MYSQL_ROOT_PASSWORD='旧的root密码' kanle
+```
+
+迁移完成后按 `Ctrl+C` 停止该命令，再执行 `docker compose up -d`。之后新的 root 密钥和其他密钥都会自动保存。
 
 ## Release 版本部署
 
-推送 `v1.0.0` 标签后，GitHub Actions 会创建 Release，并生成：
+推送 `v1.0.0` 标签后，GitHub Actions 会创建 Release。Release 包中的 `docker-compose.yml` 会固定使用对应版本镜像：
 
 - `kanle-1.0.0-deploy.zip`
 - `kanle-1.0.0-deploy.tar.gz`
 - `kanle-1.0.0-checksums.sha256`
 
-解压 Release 文件包后，在 `.env` 中设置：
-
-```ini
-IMAGE_TAG=1.0.0
-```
-
-然后执行：
+解压 Release 文件包后直接执行：
 
 ```bash
 docker compose pull
 docker compose up -d --force-recreate
 ```
-
-不设置 `IMAGE_TAG` 时默认拉取 `latest`。
 
 ## 更新 latest
 
@@ -85,6 +81,7 @@ Compose 将宿主机 `/var/kanle` 挂载到容器 `/app/data`，其中包括：
 - `/var/kanle/mysql`：MySQL 数据库
 - `/var/kanle/uploads`：上传文件
 - `/var/kanle/plugins`：音乐插件
+- `/var/kanle/.env.generated`：自动生成的密钥和管理员初始密码
 
 停止服务但保留数据：
 
@@ -92,16 +89,16 @@ Compose 将宿主机 `/var/kanle` 挂载到容器 `/app/data`，其中包括：
 docker compose down
 ```
 
-不要删除 `/var/kanle`。更新前建议备份数据库、上传文件、插件和 `.env` 文件。
+不要删除 `/var/kanle`。更新前建议备份数据库、上传文件、插件和 `.env.generated` 文件。
 
 ## 检查状态和日志
 
 ```bash
 docker compose ps
 docker compose logs --tail=100 kanle
-curl -I http://127.0.0.1:${HTTP_PORT:-3000}/
+curl -I http://127.0.0.1:3000/
 ```
 
 ## HTTPS
 
-Compose 直接暴露应用的 3000 端口。生产环境建议在宿主机 Nginx、Caddy、云负载均衡或 CDN 层终止 HTTPS，再反向代理到 `HTTP_PORT`。
+Compose 直接暴露应用的 3000 端口。生产环境建议在宿主机 Nginx、Caddy、云负载均衡或 CDN 层终止 HTTPS，再反向代理到 3000 端口。

@@ -72,7 +72,7 @@
 
 ## Docker Compose 部署（推荐）
 
-Compose 默认直接拉取 GHCR 中的 `ghcr.io/xxy0op/kanle:latest` 镜像，服务器不需要保存源码，也不需要安装 Node.js、pnpm 或 PM2。MySQL、后端和前端全部运行在同一个容器内。
+Compose 默认直接拉取 GHCR 中的 `ghcr.io/xxy0op/kanle:latest` 镜像，服务器不需要保存源码，也不需要安装 Node.js、pnpm 或 PM2。MySQL、后端和前端全部运行在同一个容器内，密钥会在首次启动时自动生成。
 
 ### 环境要求
 
@@ -90,30 +90,12 @@ Compose 默认直接拉取 GHCR 中的 `ghcr.io/xxy0op/kanle:latest` 镜像，�
 ```yaml
 services:
   kanle:
-    image: ghcr.io/xxy0op/kanle:${IMAGE_TAG:-latest}
+    image: ghcr.io/xxy0op/kanle:latest
     pull_policy: always
     container_name: kanle
     restart: always
-    environment:
-      NODE_ENV: production
-      BACKEND_PORT: 4000
-      FRONTEND_PORT: 3000
-      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}"
-      DB_HOST: 127.0.0.1
-      DB_PORT: 3306
-      DB_NAME: "${DB_NAME:-moment_blog}"
-      DB_USER: "${DB_USER:-kanle}"
-      DB_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
-      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in .env}"
-      JWT_EXPIRES_IN: "${JWT_EXPIRES_IN:-7d}"
-      ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@kanle.net}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}"
-      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
-      CLIENT_URL: "${CLIENT_URL:-http://localhost:3000}"
-      REVALIDATE_URL: http://127.0.0.1:3000
-      REVALIDATE_SECRET: "${REVALIDATE_SECRET:?Set REVALIDATE_SECRET in .env}"
     ports:
-      - "${HTTP_PORT:-3000}:3000"
+      - 3000:3000
     volumes:
       - /var/kanle:/app/data
 ```
@@ -128,11 +110,9 @@ cd /opt/kanle
 
 curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/xxy0op/kanle/main/docker-compose.yml
 curl -fsSL -o .env.example https://raw.githubusercontent.com/xxy0op/kanle/main/.env.example
-cp .env.example .env
-vim .env
 ```
 
-至少修改 `MYSQL_ROOT_PASSWORD`、`DB_PASSWORD`、`JWT_SECRET`、`ADMIN_PASSWORD` 和 `REVALIDATE_SECRET`。域名部署时将 `CLIENT_URL` 改为站点完整地址，例如 `https://example.com`。
+不需要手动填写数据库密钥、JWT 密钥、重验证密钥或管理员初始密码。首次启动会自动生成这些值，并以 600 权限保存到 `/var/kanle/.env.generated`。
 
 启动服务：
 
@@ -142,32 +122,26 @@ docker compose pull
 docker compose up -d
 ```
 
-默认访问地址是 `http://服务器IP:3000`。如果修改了 `HTTP_PORT`，访问时带上对应端口。
+默认访问地址是 `http://服务器IP:3000`。
 
-首次启动时，容器会初始化 MySQL、创建业务用户和数据表，然后创建管理员账号。已有数据库不会被 `ADMIN_PASSWORD` 覆盖；`MYSQL_ROOT_PASSWORD` 和 `JWT_SECRET` 必须长期保持不变。
+首次启动时，容器会初始化 MySQL、创建业务用户和数据表，然后创建管理员账号。管理员初始密码会打印到日志中：`docker compose logs kanle`。生成的密钥和密码会持久化，重启不会变化。
+
+如果从旧版本升级且 `/var/kanle/mysql` 已存在但没有 `/var/kanle/.env.generated`，首次启动需要临时提供旧的 MySQL root 密码，详见 [`DEPLOYMENT.md`](DEPLOYMENT.md)。
 
 ### Release 版本部署
 
-每个 `v*` Git 标签会自动生成 Release 部署文件包：
+每个 `v*` Git 标签会自动生成 Release 部署文件包，包内的 `docker-compose.yml` 会固定使用对应版本镜像：
 
 - `kanle-x.y.z-deploy.zip`
 - `kanle-x.y.z-deploy.tar.gz`
 - `kanle-x.y.z-checksums.sha256`
 
-解压 Release 文件包后，在 `.env` 中设置具体镜像版本：
-
-```ini
-IMAGE_TAG=1.0.0
-```
-
-然后执行：
+解压 Release 文件包后直接执行：
 
 ```bash
 docker compose pull
 docker compose up -d --force-recreate
 ```
-
-不设置 `IMAGE_TAG` 时默认拉取 `latest`。
 
 ### 更新 latest
 
@@ -180,7 +154,9 @@ docker compose up -d --force-recreate
 
 ### 数据和日志
 
-Compose 会把 `/var/kanle` 挂载到容器的 `/app/data`，用于保存 MySQL 数据、上传文件和音乐插件。停止服务但保留应用数据使用 `docker compose down`，不要删除 `/var/kanle`。
+Compose 会把 `/var/kanle` 挂载到容器的 `/app/data`，用于保存 MySQL 数据、上传文件、音乐插件和自动生成的密钥。停止服务但保留应用数据使用 `docker compose down`，不要删除 `/var/kanle`。
+
+管理员初始密码只在首次创建管理员时输出到容器日志；如果日志被清理，只能从备份的 `/var/kanle/.env.generated` 中恢复。
 
 ```bash
 docker compose ps
@@ -513,18 +489,9 @@ pm2 restart kanle-frontend
 
 ### Docker Compose（根目录 `.env`）
 
-| 变量 | 必填 | 默认值 | 说明 |
-|---|---|---|---|
-| `IMAGE_TAG` | 否 | `latest` | 应用镜像版本；Release 部署可设置为 `1.0.0` |
-| `MYSQL_ROOT_PASSWORD` | 是 | - | 容器内 MySQL root 密码 |
-| `DB_NAME` | 否 | `moment_blog` | 数据库名 |
-| `DB_USER` | 否 | `kanle` | 数据库业务用户 |
-| `DB_PASSWORD` | 是 | - | 数据库业务用户密码 |
-| `JWT_SECRET` | 是 | - | JWT 密钥，升级时必须保持不变 |
-| `ADMIN_PASSWORD` | 是 | - | 新数据库的初始管理员密码 |
-| `REVALIDATE_SECRET` | 是 | - | 前后端服务端之间的重验证密钥 |
-| `CLIENT_URL` | 否 | `http://localhost:3000` | 公网站点地址，用于 CORS |
-| `HTTP_PORT` | 否 | `3000` | 应用对外端口 |
+Docker Compose 不再要求手动配置密钥。首次启动时会自动生成并保存到 `/var/kanle/.env.generated`。
+
+普通 Docker 部署无需准备 `.env` 或修改任何参数；密钥和管理员初始密码由容器首次启动时自动生成。
 
 完整模板见 [`.env.example`](.env.example)。
 

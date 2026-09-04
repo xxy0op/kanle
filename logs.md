@@ -107,3 +107,41 @@ Progress:
 - Verification: 尚未开始。
 - Unresolved bugs / risks: 当前环境没有 Docker，需以 GitHub Actions 的多架构构建结果为最终验证。
 - Files changed: Dockerfile, logs.md
+
+## 2026-09-04 13:47 - 记录远程镜像修复验证状态
+
+Status: In progress
+
+Progress:
+- Completed: 通过 GitHub Actions 日志确认 v1.0.1 的第二个失败点为 MySQL Oracle Linux 镜像中不存在 `node` 用户；移除 `chown -R node:node` 后本地 Dockerfile、Compose、启动脚本和 README 检查通过。
+- Completed: 本地生成修复提交 `d5c6ba8`。
+- In progress: 将 `d5c6ba8` 推送到远端并重新生成修复后的镜像版本。
+- Not started: 远端镜像最终成功验证。
+- Verification: 启动脚本 shell 语法、Compose YAML、README 配置同步、Dockerfile 结构检查均通过；Docker 镜像无法在当前环境本地构建。
+- Unresolved bugs / risks: GitHub Git HTTPS 端点当前持续连接重置/超时，`d5c6ba8` 尚未确认推送到 `origin/main`；远端仍可能使用旧的失败镜像。
+- Files changed: Dockerfile, logs.md
+
+## 2026-09-04 14:00 - 完成多架构镜像修复发布
+
+Status: Completed
+
+Progress:
+- Completed: 推送修复提交 `d5c6ba8` 到远端 `main`；创建并推送 `v1.0.2` 标签。
+- Completed: 修复后的多架构 Docker 镜像工作流和 Release 文件包工作流均成功。
+- In progress: 无。
+- Not started: 无。
+- Verification: `main` 远端 SHA 已确认为 `d5c6ba8e1525d50b1cc9cd811d21db0c98344997`；镜像工作流 `33841943814` 成功；Release 工作流 `33841943851` 成功；Release `v1.0.2` 已包含 ZIP、TAR.GZ 和 SHA256 校验文件。
+- Unresolved bugs / risks: GHCR 页面显示容器包为 Private，未登录服务器不能直接拉取；部署前需执行 `docker login ghcr.io`，或将 `ghcr.io/xxy0op/kanle` 容器包改为 Public。
+- Files changed: Dockerfile, logs.md；远端已发布 `v1.0.2` 镜像和 Release。
+
+## 2026-09-04 16:06 - 自动生成并持久化部署密钥
+
+Status: Completed
+
+Progress:
+- Completed: 确认当前 Compose 仍要求用户手动填写 MySQL root 密码、数据库密码、JWT 密钥、重验证密钥和管理员初始密码；改为首次启动自动生成随机密钥并保存到 `/var/kanle/.env.generated`，首次创建管理员时将管理员密码写入容器日志；同步更新 Compose、环境变量模板、README 和 DEPLOYMENT 文档；修正 Release 包内 Compose 的版本替换逻辑；补充旧版本数据迁移提示。
+- In progress: 无。
+- Not started: 无。
+- Verification: `docker-entrypoint.sh` shell 语法检查通过；Compose YAML 验证通过且不再暴露密钥参数；README Compose 代码块与文件完全一致；随机生成、600 权限持久化、管理员日志输出、旧数据迁移分支和 Release 版本替换检查通过；后端 `npm run build` 和前端 `npm run build` 通过；`git diff --check` 通过。
+- Unresolved bugs / risks: 旧版本已有 MySQL 数据但没有 `.env.generated` 时，无法安全推断原 root 密码；启动脚本会停止并要求临时提供旧密码。当前环境没有 Docker，未执行真实镜像构建和容器启动。
+- Files changed: docker-compose.yml, docker-entrypoint.sh, .env.example, README.md, DEPLOYMENT.md, .github/workflows/release-bundle.yml, logs.md

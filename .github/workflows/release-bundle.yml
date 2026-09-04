@@ -25,7 +25,9 @@ jobs:
           BUNDLE_DIR="dist/kanle-${VERSION}"
 
           mkdir -p "${BUNDLE_DIR}"
-          cp docker-compose.yml .env.example DEPLOYMENT.md README.md LICENSE "${BUNDLE_DIR}/"
+          sed "s#ghcr.io/xxy0op/kanle:latest#ghcr.io/xxy0op/kanle:${VERSION}#g" \
+            docker-compose.yml > "${BUNDLE_DIR}/docker-compose.yml"
+          cp .env.example DEPLOYMENT.md README.md LICENSE "${BUNDLE_DIR}/"
           printf '%s\n' "${VERSION}" > "${BUNDLE_DIR}/VERSION"
 
           (
