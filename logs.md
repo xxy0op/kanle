@@ -95,3 +95,15 @@ Progress:
 - Verification: 尚未开始。
 - Unresolved bugs / risks: 当前环境没有 Docker，无法本地执行多架构 Buildx 构建；需以 GitHub Actions 结果为最终验证。
 - Files changed: Dockerfile, logs.md
+
+## 2026-09-04 00:00 - 修复 Oracle Linux 镜像用户归属错误
+
+Status: In progress
+
+Progress:
+- Completed: 根据 v1.0.1 GitHub Actions 日志确认构建已越过 manifest 阶段，失败点是 `chown -R node:node /app/frontend`。
+- In progress: 移除最终 MySQL 基础镜像中不存在的 `node` 用户归属操作。
+- Not started: 静态检查、提交并重新触发镜像发布。
+- Verification: 尚未开始。
+- Unresolved bugs / risks: 当前环境没有 Docker，需以 GitHub Actions 的多架构构建结果为最终验证。
+- Files changed: Dockerfile, logs.md

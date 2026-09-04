@@ -59,14 +59,13 @@ COPY backend/package.json ./backend/package.json
 COPY --from=backend-build /src/backend/dist ./backend/dist
 COPY --from=backend-build /src/backend/public ./backend/public
 COPY --from=backend-build /src/backend/plugins ./backend/plugins
-COPY --from=frontend-build --chown=node:node /src/frontend/.next/standalone ./frontend
+COPY --from=frontend-build /src/frontend/.next/standalone ./frontend
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN mkdir -p /app/data/mysql /app/data/uploads /app/data/plugins \
   && rm -rf /app/backend/public/uploads /app/backend/plugins \
   && ln -s /app/data/uploads /app/backend/public/uploads \
   && ln -s /app/data/plugins /app/backend/plugins \
-  && chown -R node:node /app/frontend \
   && chmod +x ./docker-entrypoint.sh
 
 EXPOSE 3000
